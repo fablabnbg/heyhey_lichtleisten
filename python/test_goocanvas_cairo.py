@@ -18,7 +18,7 @@
 import sys
 import gtk
 from goocanvas import *
-import cairo
+# import cairo
 
 def print_pdf(c):
   # (x1,y1,x2,y2) = c.get_bounds()
