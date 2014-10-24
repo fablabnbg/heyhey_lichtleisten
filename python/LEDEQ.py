@@ -28,6 +28,7 @@ LED_DMA     = 5       # DMA channel to use for generating signal (try 5)
 LED_INVERT  = True   # True to invert the signal (when using NPN transistor level shift)
 
 redwalker = True	# put False here for EQ
+redwalker_rgb = [255,0,0]
 
 
 def clip(sample):
@@ -162,15 +163,14 @@ if __name__ == '__main__':
 	walker_pos = 0
 	walker_dir = 1
 
-	init_red = [155,2,1]
-        walker = init_red
+        walker = redwalker_rgb
 	while True:
 		
 		if redwalker:
 			if (hyp.poll()):
 				new = hyp.color()
 				if new: walker = new
-				else: walker = init_red
+				else: walker = redwalker_rgb
 			redstd(LED_COUNT, strip, walker_pos, walker)
 			if walker_pos >= LED_COUNT: walker_dir = -1
 			if walker_pos <= 0:         walker_dir = 1
