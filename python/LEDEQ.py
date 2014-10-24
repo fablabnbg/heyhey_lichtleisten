@@ -16,7 +16,9 @@ import numpy as np
 
 from neopixel import *
 import pylab
+import hyperion
 
+hyp = hyperion.server()
 
 # LED strip configuration:
 LED_COUNT   = 46*9       # Number of LED pixels.
@@ -24,6 +26,9 @@ LED_PIN    = 18      # GPIO pin connected to the pixels (must support PWM!).
 LED_FREQ_HZ = 900000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA     = 5       # DMA channel to use for generating signal (try 5)
 LED_INVERT  = True   # True to invert the signal (when using NPN transistor level shift)
+
+redwalker = True	# put False here for EQ
+
 
 def clip(sample):
 	"""Clips a value greater then 255"""
@@ -116,8 +121,9 @@ def drawGraph(lenght, yData):
     pylab.plot(xAxis, yData)
     pylab.show()
 
-def redstd(striplength, strip,j,r,g,b):
+def redstd(striplength, strip,j,rgb):
 	
+	r,g,b=rgb
 	for i in range(striplength):
 		Col = Color(r/3,g/3,b/3)
 		strip.setPixelColor(i,Col)
@@ -153,33 +159,42 @@ if __name__ == '__main__':
 	#		print n	
 
 	print 'Press Ctrl-C to quit.'
-	i = 0
+	walker_pos = 0
+	walker_dir = 1
 
+	init_red = [155,2,1]
+        walker = init_red
 	while True:
 		
-		redstd(LED_COUNT, strip,i%LED_COUNT,255,2,1)
-		i += 1
-		
-                #length,data = inp.read()
+		if redwalker:
+			if (hyp.poll()):
+				new = hyp.color()
+				if new: walker = new
+				else: walker = init_red
+			redstd(LED_COUNT, strip, walker_pos, walker)
+			if walker_pos >= LED_COUNT: walker_dir = -1
+			if walker_pos <= 0:         walker_dir = 1
+			walker_pos += walker_dir
+		else:	
+                	length,data = inp.read()
 
-
-		#if (len(data) == 768) & (length == 192):
-			#print length
+			if (len(data) == 768) & (length == 192):
+				#print length
+					
+				eq = fftToPixelsHue(len(data), data, strip.numPixels())
 				
-		#	eq = fftToPixelsHue(len(data), data, strip.numPixels())
-			
-		#	iEQ = 0
-		#	bar = []
-		#	for ledNum in range(LED_COUNT):
-		#		if (ledNum % 46) == 0:
-		#			bar = toBar(46,5*eq[iEQ]/255.0)
-					#print bar
-		#			iEQ += 1
-		#		strip.setPixelColor(ledNum,bar[(ledNum%46)])
+				iEQ = 0
+				bar = []
+				for ledNum in range(LED_COUNT):
+					if (ledNum % 46) == 0:
+						bar = toBar(46,5*eq[iEQ]/255.0)
+						#print bar
+						iEQ += 1
+					strip.setPixelColor(ledNum,bar[(ledNum%46)])
 
-			#for i in range(LED_COUNT):
-			#	strip.setPixelColor(i,Color(255,0,0))
+				for i in range(LED_COUNT):
+					strip.setPixelColor(i,Color(255,0,0))
 
-		#	strip.show()
+				strip.show()
 
 ##46 per Strip
