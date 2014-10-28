@@ -27,7 +27,7 @@ LED_FREQ_HZ = 900000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA     = 5       # DMA channel to use for generating signal (try 5)
 LED_INVERT  = True   # True to invert the signal (when using NPN transistor level shift)
 
-redwalker = False	# put False here for EQ
+redwalker = True	# put False here for EQ
 redwalker_rgb = [255,0,0]
 
 
@@ -153,33 +153,40 @@ if __name__ == '__main__':
 	print 'Press Ctrl-C to quit.'
 	walker_pos = 0
 	walker_dir = 1
+	fg_bg_toggle = 0	# start with bgCol
 
-        walker = redwalker_rgb
+        hyp_color = redwalker_rgb
 
 	bar = []
 	lastEQ = [0,0,0,0,0,0,0,0,0]
 
-        #length,data = inp.read()
 	counter = 0
+	bgCol = Color(hyp_color[0], hyp_color[1], hyp_color[2])
+	fgCol = Color(255,0,0)
 
 	while True:
 		
 		if (hyp.poll()):
                         new = hyp.color()
                         if new:
-                        	walker = new
+                        	hyp_color = new
                         	print new
-                	else: walker = redwalker_rgb
+                	else: 
+				hyp_color = redwalker_rgb
+				fg_bg_toggle = 1 - fg_bg_toggle
 			
 		if redwalker:
-			redstd(LED_COUNT, strip, walker_pos, walker)
+			redstd(LED_COUNT, strip, walker_pos, hyp_color)
 			if walker_pos >= LED_COUNT: walker_dir = -1
 			if walker_pos <= 0:         walker_dir = 1
 			walker_pos += walker_dir
 		else:			
 			length,data = inp.read()
-			r,g,b = walker
-			bgCol = Color(r,g,b)			
+			r,g,b = hyp_color
+			if fg_bg_toggle:
+				fgCol = Color(r,g,b)			
+			else:
+				bgCol = Color(r,g,b)
 
 			while (length != 90):
 				length,data = inp.read()
@@ -203,7 +210,7 @@ if __name__ == '__main__':
 					strip.setPixelColor(ledNum,bar[(ledNum%46)])
 
 					#for i in range(LED_COUNT):
-					#	strip.setPixelColor(i,Color(255,0,0))
+					#	strip.setPixelColor(i,fgCol)
 			
 				strip.show()
 ##46 per Strip
