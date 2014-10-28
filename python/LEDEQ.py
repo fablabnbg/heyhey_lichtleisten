@@ -10,7 +10,7 @@ import math
 import numpy
 from scipy import fft, arange
 
-import alsaaudio, time, audioop, datetime
+import alsaaudio
 
 import numpy as np
 
@@ -27,7 +27,7 @@ LED_FREQ_HZ = 900000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA     = 5       # DMA channel to use for generating signal (try 5)
 LED_INVERT  = True   # True to invert the signal (when using NPN transistor level shift)
 
-redwalker = True	# put False here for EQ
+redwalker = False	# put False here for EQ
 redwalker_rgb = [255,0,0]
 
 
@@ -63,43 +63,32 @@ def scaleLine(tgtPixelsSize , srcPixels):
 
 def fftToPixelsHue(length, data, sizefft):
 
-	a = numpy.fromstring(data,'int16')/65536
-	
-	#a = [math.sin(1000*2*math.pi*x/768.0) for x in range(768)]
+	a = numpy.fromstring(data,'int16')/32768.0
+	#print np.mean(a)	
+	#a = [math.sin(25*2*math.pi*(x/180.0)) for x in range(180)]
 
 	#print a
 	
-	ft = (abs(fft(a)))[191:382]/10
-	#print (ft)
+	ft = (abs(fft(a)))[15:87]/90
+	#print len(ft)
 
 	#drawGraph(len(ft),ft)
 	
-	lenDivisor = 21
+	#print ft
+	lenDivisor = 8
 
 	eq = [0 for x in range(9)]
 	for i in range(9):
-		for j in range(lenDivisor):
-			#print ft[j+lenDivisor*(i)]
-			eq[i] += ft[j+lenDivisor*(i)]
-		eq[i] = eq[i]
+		#print ft[j+lenDivisor*(i)]
+		eq[i] = np.mean(ft[i*lenDivisor:(i+1)*lenDivisor])
 
 	#print eq
-			
-			
-	#if autoModulator % 8 == 0:
-	#	amC = 0
-	#	maxA = numpy.max(a)
-
-	#ft = 0.0000001*(ft*ft)
-			
-	#print nft
-	#sizefft = int(sizefft)
-	#pixels = scaleLine(sizefft , ft)
+	
 	return eq
 
 # power = 0-1.0
-def toBar(striplength, power):
-	bar = [0 for x in range(striplength)]
+def toBar(striplength, power, bgCol):
+	bar = [bgCol for x in range(striplength)]
 	#for i in range(striplength):
 	#	Col = Color(int(255.0*math.log(power)*i/striplength),0,0)
 	#	bar[i] = Col
@@ -109,9 +98,11 @@ def toBar(striplength, power):
 	
 	#print power
 
+	power = power * 16.0
+
 	for i in range(striplength):
 		if( int(power*48) > i):
-			Col = Color(int(255.0*power),int(127.0*power),int(5.0*power))
+			Col = Color(clip(int(5.0*power)),clip(int(127.0*power)),clip(int(255.0*power)))
 			bar[i] = Col
 
 	return bar
@@ -148,12 +139,12 @@ if __name__ == '__main__':
 
 	#print alsaaudio.cards()
 
-	card = 'iec958:CARD=Device,DEV=0'
+	card = 'front:CARD=Device,DEV=0'
         inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL,card)
         inp.setchannels(1)
-	inp.setrate(87000)
+	inp.setrate(32000)
         inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-	inp.setperiodsize(192)
+	inp.setperiodsize(90)
 
 	#for n in range(1, 16385):
 	#	if inp.setperiodsize(n) == n:
@@ -164,37 +155,55 @@ if __name__ == '__main__':
 	walker_dir = 1
 
         walker = redwalker_rgb
+
+	bar = []
+	lastEQ = [0,0,0,0,0,0,0,0,0]
+
+        #length,data = inp.read()
+	counter = 0
+
 	while True:
 		
+		if (hyp.poll()):
+                        new = hyp.color()
+                        if new:
+                        	walker = new
+                        	print new
+                	else: walker = redwalker_rgb
+			
 		if redwalker:
-			if (hyp.poll()):
-				new = hyp.color()
-				if new: walker = new
-				else: walker = redwalker_rgb
 			redstd(LED_COUNT, strip, walker_pos, walker)
 			if walker_pos >= LED_COUNT: walker_dir = -1
 			if walker_pos <= 0:         walker_dir = 1
 			walker_pos += walker_dir
-		else:	
-                	length,data = inp.read()
+		else:			
+			length,data = inp.read()
+			r,g,b = walker
+			bgCol = Color(r,g,b)			
 
-			if (len(data) == 768) & (length == 192):
-				#print length
+			while (length != 90):
+				length,data = inp.read()
+
+			if (length == 90):
 					
 				eq = fftToPixelsHue(len(data), data, strip.numPixels())
-				
+
+				if(eq[5] != 0):
+					lastEQ = eq
+				else:
+					for i in range(9):
+						lastEQ[i] = lastEQ[i]/1.5
 				iEQ = 0
-				bar = []
 				for ledNum in range(LED_COUNT):
 					if (ledNum % 46) == 0:
-						bar = toBar(46,5*eq[iEQ]/255.0)
+						bar = toBar(46,lastEQ[iEQ],bgCol)
 						#print bar
 						iEQ += 1
+
 					strip.setPixelColor(ledNum,bar[(ledNum%46)])
 
-				for i in range(LED_COUNT):
-					strip.setPixelColor(i,Color(255,0,0))
-
+					#for i in range(LED_COUNT):
+					#	strip.setPixelColor(i,Color(255,0,0))
+			
 				strip.show()
-
 ##46 per Strip
